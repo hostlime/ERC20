@@ -7,9 +7,9 @@ chai.use(require('chai-bignumber')());
 //chai.use(require('chai-bignumber')(BigNumber));
 
 
-describe.only("Checking ERC20 functions", function () {
+describe("Checking ERC20 functions", function () {
     let ico;
-
+    const mount = 55;
     // создаём экземпляры контракта
     beforeEach(async () => {
         [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
@@ -19,23 +19,46 @@ describe.only("Checking ERC20 functions", function () {
     });
 
     // view функции
-    it("Checking functions - symbol(), symbol(), name(), totalSupply()", async function () {
+    it("Checking functions - symbol(), decimals(), name(), totalSupply()", async function () {
         const name = "MegaToken";
         const symbol = "MEGA";
         const decimals = 18;
-        const totalSupply = 1000000 * (10 ** decimals);
+        //const totalSupply = 10000 * (10 ** decimals);
+        const totalSupply =
+            ethers.BigNumber.from(ethers.utils.parseEther("10000"));
+        expect(await ico.totalSupply()).to.equal(totalSupply);
+
+        // name()
         expect(await ico.name()).to.equal(name);
+        // symbol()
         expect(await ico.symbol()).to.equal(symbol);
+        // decimals()
         expect(await ico.decimals()).to.equal(decimals);
-        //const _totalSupply = await ico.totalSuplay()
-        //console.log("'%s'   '%s'", totalSupply , await ico.totalSuplay());
+        // totalSupply()
+        const ownerBalance = await ico.balanceOf(owner.address);
+        expect(await ico.totalSupply()).to.equal(ownerBalance);
+    });
 
-        //expect(totalSupply).should.be.bignumber.equal(await ico.totalSuplay());
-        //result.should.be.bignumber.equal(expected);
-        //expect(await ico.totalSuplay()).should.be.bignumber.equal(totalSupply);
-        //expect(_totalSupply).to.be.a(__totalSupply);
-        //expect(await ico.totalSuplay()).to.equal(totalSupply);
+    it("Checking function mint()", async function () {
 
+        // Проверяем что баланс 0
+        expect(await ico.balanceOf(addr1.address)).to.equal(0);
+        // Только овнер может минтить токены
+        await expect(ico.connect(addr1).mint(ethers.constants.AddressZero, mount))
+            .to.be.revertedWith("Only owner can mint new tokens")
+
+        // проверяем require(_user != address(0), "_user has the zero address");
+        await expect(ico.connect(owner).mint(ethers.constants.AddressZero, mount))
+            .to.be.revertedWith("_user has the zero address")
+
+        // Овнер минтит адресу addr1 mount токенов
+        const tx = await ico.mint(addr1.address, mount);
+        // event Transfer
+        //console.log(tx);
+        expect(tx).to.emit(ico, "Transfer")
+            .withArgs(ethers.constants.AddressZero, addr1.address, mount)
+
+        expect(await ico.balanceOf(addr1.address)).to.equal(mount);
     });
     it("Checking function balanceOf()", async function () {
         expect(await ico.balanceOf(addr1.address)).to.equal(0);
@@ -53,6 +76,11 @@ describe.only("Checking ERC20 functions", function () {
     it("Checking function transfer()", async function () {
         const amountAddr1 = 55;
         const amountAddr2 = 23;
+
+        // проверяем require(_to != address(0), "_to the zero address");
+        await expect(ico.connect(addr1).transfer(ethers.constants.AddressZero, amountAddr1))
+            .to.be.revertedWith("_to the zero address")
+
         // переводим от овнера amountAddr1 токенов,
         // чтобы потом проверить что он не сможет перевести amountAddr1 + 1
         await ico.transfer(addr1.address, amountAddr1);
@@ -62,9 +90,17 @@ describe.only("Checking ERC20 functions", function () {
         // переводим amountAddr2 на addr2
         await ico.connect(addr1).transfer(addr2.address, amountAddr2)
 
+
+
         // проверяем балансы адресов
         expect(await ico.balanceOf(addr1.address)).to.equal(amountAddr1 - amountAddr2);
         expect(await ico.balanceOf(addr2.address)).to.equal(amountAddr2);
+
+        // event Transfer
+        const tx = await ico.transfer(addr1.address, mount);
+        expect(tx).to.emit(ico, "Transfer")
+            .withArgs(owner.address, addr1.address, mount)
+
     });
     it("Checking function event Approval, aprove(), allowance(), increaseAllowance(), decreaseAllowance()", async function () {
         const amountAddr1 = 55;
@@ -76,6 +112,10 @@ describe.only("Checking ERC20 functions", function () {
         expect(tx).to.emit(ico, "Approval")
             .withArgs(owner.address, addr1.address, amountAddr1)
 
+        // проверяем require(_spender != address(0), "_spender the zero address");
+        await expect(ico.connect(owner).approve(ethers.constants.AddressZero, mount))
+            .to.be.revertedWith("_spender the zero address")
+
         // allowance
         expect(await ico.allowance(owner.address, addr1.address))
             .to.equal(amountAddr1)
@@ -84,6 +124,11 @@ describe.only("Checking ERC20 functions", function () {
         await ico.increaseAllowance(addr1.address, amountIncDec)
         expect(await ico.allowance(owner.address, addr1.address))
             .to.equal(amountAddr1 + amountIncDec)
+
+        // проверяем require(_allowance[msg.sender][_spender] >= _decAmount,"decreased allowance below zero");
+        // вытаемся уменьшить количество approve больше чем возможно
+        await expect(ico.connect(owner).decreaseAllowance(addr1.address, amountAddr1*amountAddr1))
+            .to.be.revertedWith("decreased allowance below zero")
 
         // decreaseAllowance()
         await ico.decreaseAllowance(addr1.address, amountIncDec)
@@ -119,7 +164,7 @@ describe.only("Checking ERC20 functions", function () {
         expect(await ico.balanceOf(addr1.address)).to.equal(0);
     });
 });
-describe.only("Checking TokenSale", function () {
+describe("Checking TokenSale", function () {
     let ico;
 
     // создаём экземпляры контракта
@@ -129,7 +174,17 @@ describe.only("Checking TokenSale", function () {
         ico = await ICO.deploy();
         await ico.deployed();
     });
+    // проверка, что контракт создан овнером
+    it("Checking contract creater is an owner", async function () {
+        expect(await ico.Owner()).to.equal(owner.address);
+    });
 
+    // проверка, что вся эмиссия у овнера
+    it("Checking Should assign the total supply of tokens to the owner", async function () {
+        const ownerBalance = await ico.balanceOf(owner.address);
+        //console.log("'%s'",await ico.totalSupply() );
+        expect(await ico.totalSupply()).to.equal(ownerBalance);
+    });
     // функция покупки токенов
     it("Checking functions - buy()", async function () {
         tx_buy = {
@@ -138,8 +193,16 @@ describe.only("Checking TokenSale", function () {
         };
         // отправляем эфир на контракт
         await addr1.sendTransaction(tx_buy)
-
         expect(await ico.balanceOf(addr1.address)).to.equal(ethers.utils.parseEther("12"));
+
+        //проверка require(msg.sender.balance >= msg.value && msg.value != 0 ether,
+        tx_buy = {
+            to: ico.address,
+            value: ethers.utils.parseEther("0"),
+        };
+        await expect(addr1.sendTransaction(tx_buy)).to.be.revertedWith(
+            "ICO: function buy invalid input"
+        );
     });
     // функция покупки токенов
     it("Checking functions - buy() after a week => tokensale is over", async function () {

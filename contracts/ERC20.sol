@@ -26,10 +26,6 @@ contract ERC20 {
     constructor(string memory __name, string memory __symbol) {
         // Указываем число нулей
         _decimals = 18;
-        // Эмиссия токена, которого будет создана при инициализации
-        _totalSupply = 10_000 * (10**_decimals);
-        // Отдаем все токены тому, кто инициализировал создание контракта токена
-        _balanceOf[msg.sender] = _totalSupply;
         // Указываем название токена
         _symbol = __symbol;
         // Указываем символ токена
@@ -194,11 +190,11 @@ contract ERC20 {
 contract TokenSale is ERC20 {
     uint256 internal endTimeSale = block.timestamp + 5 days;
     uint8 internal tokenCostRate = 12;
-    address internal owner;
+    address public Owner;
 
     constructor() ERC20("MegaToken", "MEGA") {
-        _mint(msg.sender, 1000_000 * 10**decimals());
-        owner = msg.sender;
+        _mint(msg.sender, 10_000 * 10**decimals());
+        Owner = msg.sender;
     }
 
     receive() external payable {
@@ -213,10 +209,6 @@ contract TokenSale is ERC20 {
         );
         _;
     }
-    modifier onlyOwner() {
-        require(msg.sender == owner, "only owner can mint new tokens");
-        _;
-    }
 
     function buy() internal isSaleAvailable {
         require(
@@ -225,10 +217,11 @@ contract TokenSale is ERC20 {
         );
 
         uint256 amount = msg.value * tokenCostRate;
-        _transfer(owner, msg.sender, amount);
+        _transfer(Owner, msg.sender, amount);
     }
 
-    function mint(address _user, uint256 _amount) onlyOwner public virtual {
+    function mint(address _user, uint256 _amount) public virtual {
+        require(msg.sender == Owner, "Only owner can mint new tokens");
         _mint(_user, _amount);
     }
     function burn(uint256 _amount) public virtual {
