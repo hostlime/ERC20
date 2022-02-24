@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 contract ERC20 {
     // Название токена
-    string public _name;
+    string private _name;
     // Символ токена
     string private _symbol;
     // Количество нулей токена
