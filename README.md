@@ -1,6 +1,6 @@
 #  Токен MEGA ERC20
 Для контракта написаны тесты и прозведен анализ покрытия.
-
+ В контракте имеются все методы описанные в стандарте EIP-20: Token Standard https://eips.ethereum.org/EIPS/eip-20 , а так же добавлены функции mint и burn.
 #### npx hardhat test
  - Checking ERC20 functions
  -   √ Checking functions - symbol(), decimals(), name(), totalSupply() (151ms)
