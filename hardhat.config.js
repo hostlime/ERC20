@@ -26,7 +26,7 @@ task("transfer", "Transfer tokens MEGA(ERC20)")
     console.log("balance of " + taskArgs.transferto + " now is " + (await erc20.balanceOf(taskArgs.transferto)).toString());
   })
 
-//npx hardhat approve --contract 0xEFDB0b230c136b567bD7B4a5448875B3a68f47Aa --approveto 0xd506c6DF60cb274969af9c42472dd53975d1e20D --value 777 --network rinkeby
+// Пример npx hardhat approve --contract 0xEFDB0b230c136b567bD7B4a5448875B3a68f47Aa --approveto 0xC263718b809ab3EF9C816d7A2313ef0CA0Bb58a1 --value 777 --network rinkeby
 task("approve", "approve tokens transfer for another person")
   .addParam("contract", "address of deployed contract")
   .addParam("approveto", "address which we want to approve")
@@ -38,7 +38,26 @@ task("approve", "approve tokens transfer for another person")
     console.log("allowance for " + taskArgs.approveto + " now is " + (await erc20.allowance(owner.address,taskArgs.approveto)).toString());
   })
 
-
+// Пример npx hardhat transferFrom --contract 0xEFDB0b230c136b567bD7B4a5448875B3a68f47Aa --from 0xC263718b809ab3EF9C816d7A2313ef0CA0Bb58a1 --to 0xd506c6DF60cb274969af9c42472dd53975d1e20D --value 11 --network rinkeby
+// npx hardhat transferFrom --contract <..> --from <..> --to <..> --value <..> --network rinkeby
+task("transferFrom", "transfer tokens for person")
+  .addParam("contract", "address of deployed contract")
+  .addParam("from", "address who gave allowance")
+  .addParam("to", "address which we want to transfer")
+  .addParam("value", "amount token to transfer")
+  .setAction(async (taskArgs, hre) => {
+    const [owner] = await hre.ethers.getSigners();
+    const erc20 = await hre.ethers.getContractAt("ERC20", taskArgs.contract)
+    // Выводим сколько сейчас доступно для перевода 
+    console.log("allowance from " + taskArgs.from + " to " 
+    + taskArgs.to + " now is " 
+    + (await erc20.allowance(taskArgs.from,owner.address)).toString());
+    // переводим токены
+    await erc20.transferFrom(taskArgs.from, taskArgs.to, taskArgs.value)
+    // выводим балансы
+    console.log("balance from now is " + (await erc20.balanceOf(taskArgs.from)).toString());
+    console.log("balance to now is " + (await erc20.balanceOf(taskArgs.to)).toString());
+  })
 
 
 
