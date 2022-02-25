@@ -8,7 +8,8 @@ contract ERC20 {
     string private _symbol;
     // Количество нулей токена
     uint8 private _decimals;
-
+    // Владелец контракта
+    address private owner;
     // Эмиссия токена
     uint256 private _totalSupply;
 
@@ -19,119 +20,139 @@ contract ERC20 {
     mapping(address => mapping(address => uint256)) private _allowance;
 
     //Эвенты (ЛОГИ)
-    event Transfer(address indexed _from, address indexed _to, uint256 indexed _amount);
-    event Approval(address indexed _owner, address indexed _spender, uint256 indexed _amount);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Approval(
+        address indexed _owner,
+        address indexed _spender,
+        uint256 _value
+    );
 
-    // Функция инициализации контракта
-    constructor(string memory __name, string memory __symbol) {
+    // Функция инициализации контракта ERC20("MegaToken", "MEGA")
+    constructor() {
         // Указываем число нулей
         _decimals = 18;
         // Указываем название токена
-        _symbol = __symbol;
+        _symbol = "MEGA";
         // Указываем символ токена
-        _name = __name;
+        _name = "MegaToken";
+        //запоминаем овнера
+        owner = msg.sender;
+        //минним токены овнеру
+        mint(msg.sender, 10_000 * 10**decimals());
     }
 
+    // EIP-20: стандарт токена
     // Геттеры
-    function decimals() public view virtual returns (uint8) {
-        return _decimals;
-    }
-
-    function symbol() public view virtual returns (string memory) {
-        return _symbol;
-    }
-
-    function name() public view virtual returns (string memory) {
+    function name() public view returns (string memory) {
         return _name;
     }
 
-    function balanceOf(address account) public view virtual returns (uint256) {
-        return _balanceOf[account];
+    function symbol() public view returns (string memory) {
+        return _symbol;
     }
 
-    function totalSupply() public view virtual returns (uint256) {
+    function decimals() public view returns (uint8) {
+        return _decimals;
+    }
+
+    function totalSupply() public view returns (uint256) {
         return _totalSupply;
     }
-    function allowance(address owner, address spender) public view virtual returns (uint256) {
-        return _allowance[owner][spender];
+
+    function balanceOf(address _owner) public view returns (uint256 balance) {
+        return _balanceOf[_owner];
     }
+
+    // Функция для перевода токенов
+    function transfer(address _to, uint256 _value)
+        public
+        returns (bool success)
+    {
+        // Вызов внутренней функции перевода
+        _transfer(msg.sender, _to, _value);
+        return true;
+    }
+
     // Внутренняя функция для перевода токенов
     function _transfer(
         address _from,
         address _to,
-        uint256 _amount
-    ) internal virtual {
+        uint256 _value
+    ) internal {
         // Проверка на пустой адрес
         require(_from != address(0), "_from the zero address");
         require(_to != address(0), "_to the zero address");
         // Проверка того, что отправителю хватает токенов для перевода
-        require(_balanceOf[_from] >= _amount, "Do not enough balance");
+        require(_balanceOf[_from] >= _value, "Do not enough balance");
         // Проверка на переполнение
-        require(_balanceOf[_to] + _amount >= _balanceOf[_to]);
+        require(_balanceOf[_to] + _value >= _balanceOf[_to]);
         // Токены списываются у отправителя
-        _balanceOf[_from] -= _amount;
+        _balanceOf[_from] -= _value;
         // Токены прибавляются получателю
-        _balanceOf[_to] += _amount;
+        _balanceOf[_to] += _value;
         // Эвент перевода токенов
-        emit Transfer(_from, _to, _amount);
-    }
-
-    // Функция для перевода токенов
-    function transfer(address _to, uint256 _amount)
-        public
-        virtual
-        returns (bool)
-    {
-        // Вызов внутренней функции перевода
-        _transfer(msg.sender, _to, _amount);
-        return true;
+        emit Transfer(_from, _to, _value);
     }
 
     // Функция для перевода "одобренных" токенов
     function transferFrom(
         address _from,
         address _to,
-        uint256 _amount
-    ) public virtual returns (bool) {
+        uint256 _value
+    ) public returns (bool success) {
         // Проверка, что токены были выделены аккаунтом _from для аккаунта _to
-        require(_allowance[_from][msg.sender] >= _amount, "Do not enough money");
+        require(_allowance[_from][msg.sender] >= _value, "Do not enough money");
         // Уменьшаем число "одобренных" токенов
-        _approve(_from, msg.sender, _allowance[_from][msg.sender] - _amount);
+        _approve(_from, msg.sender, _allowance[_from][msg.sender] - _value);
         // Отправка токенов
-        _transfer(_from, _to, _amount);
+        _transfer(_from, _to, _value);
         return true;
     }
 
     // Функция для "одобрения" перевода токенов
-    function approve(address _spender, uint256 _amount)
+    function approve(address _spender, uint256 _value)
         public
-        virtual
-        returns (bool)
+        returns (bool success)
     {
-        _approve(msg.sender, _spender, _amount);
+        _approve(msg.sender, _spender, _value);
         return true;
     }
 
-    // Функция для добавления к одобряемому количеству токенов
-    function increaseAllowance(address _spender, uint256 _addAmount)
+    // Внутренняя функция для "одобрения" перевода токенов
+    function _approve(
+        address _owner,
+        address _spender,
+        uint256 _value
+    ) internal {
+        // Проверка на пустой адрес
+        require(_owner != address(0), "_owner the zero address");
+        require(_spender != address(0), "_spender the zero address");
+        // Записываем в маппинг число "одобренных" токенов
+        _allowance[_owner][_spender] = _value;
+        // Вызов эвента для логгирования события одобрения перевода токенов
+        emit Approval(_owner, _spender, _value);
+    }
+
+    // Возвращает сумму, которую _spender может снять у _owner
+    function allowance(address _owner, address _spender)
         public
-        virtual
-        returns (bool)
+        view
+        returns (uint256 remaining)
     {
+        return _allowance[_owner][_spender];
+    }
+
+    // Функция для добавления к одобряемому количеству токенов
+    function increaseAllowance(address _spender, uint256 _addAmount) public {
         _approve(
             msg.sender,
             _spender,
             _allowance[msg.sender][_spender] + _addAmount
         );
-        return true;
     }
 
     // Функция для уменьшения одобряемого количества токенов
-    function decreaseAllowance(address _spender, uint256 _decAmount)
-        public
-        virtual
-        returns (bool)
-    {
+    function decreaseAllowance(address _spender, uint256 _decAmount) public {
         // Проверяем, доступно ли для msg.sender переводить по адресу _spender токены в размере _decAmount
         require(
             _allowance[msg.sender][_spender] >= _decAmount,
@@ -142,26 +163,12 @@ contract ERC20 {
             _spender,
             _allowance[msg.sender][_spender] - _decAmount
         );
-        return true;
-    }
-
-    // Внутренняя функция для "одобрения" перевода токенов
-    function _approve(
-        address _owner,
-        address _spender,
-        uint256 _amount
-    ) internal virtual {
-        // Проверка на пустой адрес
-        require(_owner != address(0), "_owner the zero address");
-        require(_spender != address(0), "_spender the zero address");
-        // Записываем в маппинг число "одобренных" токенов
-        _allowance[_owner][_spender] = _amount;
-        // Вызов эвента для логгирования события одобрения перевода токенов
-        emit Approval(_owner, _spender, _amount);
     }
 
     // Функция для увеличения эмиссии
-    function _mint(address _user, uint256 _amount) internal virtual {
+    function mint(address _user, uint256 _amount) public {
+        // Только овнер может минтить
+        require(msg.sender == owner, "Only owner can mint new tokens");
         // Проверка на пустой адрес
         require(_user != address(0), "_user has the zero address");
         // увеличиваем эмиссию
@@ -173,59 +180,14 @@ contract ERC20 {
     }
 
     // Функция для сжигания токенов
-    function _burn(address _user, uint256 _amount) internal virtual {
-        // Проверка на пустой адрес
-        require(_user != address(0), "_user has the zero address");
+    function burn(uint256 _amount) public {
         // Есть ли у пользователя столько на балансе
-        require(_balanceOf[_user] >= _amount, "not enough balance to burn");
-        // увеличиваем эмиссию
+        require(_balanceOf[msg.sender] >= _amount, "burn amount exceeds balanc");
+        // уменяшаем эмиссию
         _totalSupply -= _amount;
-        // зачиляем добавленную эмиссию пользователю _user
-        _balanceOf[_user] -= _amount;
+        // уменьшаем баланс пользователя _user
+        _balanceOf[msg.sender] -= _amount;
         // генерируем событие о передаче токенов на нулевой адрес
-        emit Transfer(_user, address(0), _amount);
+        emit Transfer(msg.sender, address(0), _amount);
     }
-}
-
-contract TokenSale is ERC20 {
-    uint256 internal endTimeSale = block.timestamp + 5 days;
-    uint8 internal tokenCostRate = 12;
-    address public Owner;
-
-    constructor() ERC20("MegaToken", "MEGA") {
-        _mint(msg.sender, 10_000 * 10**decimals());
-        Owner = msg.sender;
-    }
-
-    receive() external payable {
-        buy();
-    }
-
-    // Сейл сейчас активен?
-    modifier isSaleAvailable() {
-        require(
-            (block.timestamp <= endTimeSale),
-            "tokensale is over"
-        );
-        _;
-    }
-
-    function buy() internal isSaleAvailable {
-        require(
-            msg.sender.balance >= msg.value && msg.value != 0 ether,
-            "ICO: function buy invalid input"
-        );
-
-        uint256 amount = msg.value * tokenCostRate;
-        _transfer(Owner, msg.sender, amount);
-    }
-
-    function mint(address _user, uint256 _amount) public virtual {
-        require(msg.sender == Owner, "Only owner can mint new tokens");
-        _mint(_user, _amount);
-    }
-    function burn(uint256 _amount) public virtual {
-        _burn(msg.sender, _amount);
-    }
-
 }
