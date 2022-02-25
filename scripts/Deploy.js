@@ -12,7 +12,7 @@ async function main() {
 
   console.log("Account balance:", (await deployer.getBalance()).toString());
 
-  const ICO = await ethers.getContractFactory("TokenSale");
+  const ICO = await ethers.getContractFactory("ERC20");
   const ico = await ICO.deploy();
 
   console.log("Contract address:", ico.address);

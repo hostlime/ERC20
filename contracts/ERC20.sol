@@ -9,7 +9,7 @@ contract ERC20 {
     // Количество нулей токена
     uint8 private _decimals;
     // Владелец контракта
-    address private owner;
+    address public owner;
     // Эмиссия токена
     uint256 private _totalSupply;
 
@@ -80,12 +80,10 @@ contract ERC20 {
         uint256 _value
     ) internal {
         // Проверка на пустой адрес
-        require(_from != address(0), "_from the zero address");
-        require(_to != address(0), "_to the zero address");
+        require(_from != address(0), "transfer from the zero address");
+        require(_to != address(0), "transfer to the zero address");
         // Проверка того, что отправителю хватает токенов для перевода
         require(_balanceOf[_from] >= _value, "Do not enough balance");
-        // Проверка на переполнение
-        require(_balanceOf[_to] + _value >= _balanceOf[_to]);
         // Токены списываются у отправителя
         _balanceOf[_from] -= _value;
         // Токены прибавляются получателю
@@ -100,12 +98,13 @@ contract ERC20 {
         address _to,
         uint256 _value
     ) public returns (bool success) {
+        // Отправка токенов
+        _transfer(_from, _to, _value);
         // Проверка, что токены были выделены аккаунтом _from для аккаунта _to
         require(_allowance[_from][msg.sender] >= _value, "Do not enough money");
         // Уменьшаем число "одобренных" токенов
         _approve(_from, msg.sender, _allowance[_from][msg.sender] - _value);
-        // Отправка токенов
-        _transfer(_from, _to, _value);
+
         return true;
     }
 
