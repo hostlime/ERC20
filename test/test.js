@@ -162,23 +162,29 @@ describe("Checking ERC20 functions", function () {
     it("Checking function burn()", async function () {
         const amount = 55;
         // Проверяем что сжигать нечего
-        await expect(erc20.connect(addr1).burn(amount))
-            .to.be.revertedWith("burn amount exceeds balanc");
+        await expect(erc20.connect(addr1).burn(addr1.address, amount)).to.be.revertedWith(
+          "Only owner can burn new tokens"
+        );
+        await expect(erc20.connect(owner).burn(addr1.address, amount)).to.be.revertedWith(
+          "burn amount exceeds balanc"
+        );
+        
         // отправляем amount токенов и проверяем баланс
         await erc20.transfer(addr1.address, amount);
         expect(await erc20.balanceOf(addr1.address)).to.equal(amount);
         // Сжигаем и проверяем что теперь баланс = 0
-        await erc20.connect(addr1).burn(amount);
+        await erc20.connect(owner).burn(addr1.address, amount);
         expect(await erc20.balanceOf(addr1.address)).to.equal(0);
-    });
-    // проверка, что контракт создан овнером
-    it("Checking contract creater is an owner", async function () {
+        
+      });
+      // проверка, что контракт создан овнером
+      it("Checking contract creater is an owner", async function () {
         expect(await erc20.owner()).to.equal(owner.address);
-    });
-
-    // проверка, что вся эмиссия у овнера
-    it("Checking Should assign the total supply of tokens to the owner", async function () {
+      });
+    
+      // проверка, что вся эмиссия у овнера
+      it("Checking Should assign the total supply of tokens to the owner", async function () {
         const ownerBalance = await erc20.balanceOf(owner.address);
         expect(await erc20.totalSupply()).to.equal(ownerBalance);
+      });
     });
-});
